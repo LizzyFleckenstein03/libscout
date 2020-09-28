@@ -1,0 +1,2 @@
+# libscout
+C Pathfinding Library
