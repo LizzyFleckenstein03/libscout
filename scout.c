@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#define __LIBSCOUT_INTERNAL__
 #include "scout.h"
 
 typedef struct scnode scnode;
@@ -20,16 +21,35 @@ scway *scaddway(scnode *from, const scnode *to, int len)
 	return way;
 }
 
-scwaypoint *__scallocwayp(const scnode *node, scway *way)
+scwaypoint *scout(const scnode *from, const scnode *to, scwaypoint *stack)
+{
+	scwaypoint *wayp = NULL;
+	if (from == to)
+		return __scallocwayp(from, NULL);
+	for (scway *way = from->way; way != NULL; way = way->alt) {
+		scwaypoint *stackend;
+		if ((stackend = __scstackfindgetend(stack, way)) == NULL)
+			continue;
+		scwaypoint *twayp = __scallocwayp(from, way);
+		stackend->nxt = twayp;
+		scwaypoint *nwayp = scout(way->lto, to, stack)
+		if (wayp && wayp->len <= (twayp->len = __scstackgetlen(twayp)))
+			__scstackfree(wayp);
+		wayp = twayp;
+	}
+	return wayp;
+}
+
+scwaypoint *__scallocwayp(const scnode *node, const scway *way)
 {
 	scwaypoint *wayp = malloc(sizeof(scwaypoint));
 	wayp->nod = node;
 	wayp->way = way;
 	wayp->nxt = NULL;
-	wayp->len = 0;
+	wayp->len = way->len;
 }
 
-scwaypoint *__scstackfindgetend(scwaypoint *stack, scway *way)
+scwaypoint *__scstackfindgetend(scwaypoint *stack, const scway *way)
 {
 	scwaypoint *asptr, *sptr;
 	for (asptr = stack; asptr != NULL; sptr = asptr, asptr = asptr->nxt)
@@ -42,26 +62,4 @@ void __scstackfree(scwaypoint *stack)
 {
 	for (scwaypoint *sptr = stack; sptr != NULL; sptr = sptr->nxt)
 		free(sptr);
-}
-
-int __scstackgetlen(scwaypoint *stack)
-{
-	for (scwaypoitn)
-}
-
-scwaypoint *scout(const scnode *from, const scnode *to, scwaypoint *stack)
-{
-	scwaypoint *wayp = NULL;
-	if (from == to)
-		return __scallocwayp(from, NULL);
-	for (scway *way = from->way; way != NULL; way = way->alt) {
-		scwaypoint *stackend;
-		if ((stackend = __scstackfindgetend(stack, way)) == NULL)
-			continue;
-		
-		if (wayp && wayp->len <= (tway->len = __scstackgetlen(tway)))
-			__scstackfree(wayp);
-		wayp = twayp;
-	}
-	return wayp;
 }
