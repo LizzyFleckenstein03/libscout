@@ -1,19 +1,22 @@
 #include <stdlib.h>
-#define __LIBSCOUT_INTERNAL__
 #include "scout.h"
 
-typedef struct scnode scnode;
-typedef struct scway scway;
-typedef struct scwaypoint scwaypoint;
+scnode *scnodalloc(void *data)
+{
+	scnode *nod = malloc(sizeof(scnode));
+	nod->way = NULL;
+	nod->dat = data;
+	return nod;
+}
 
-scway *scaddway(scnode *from, const scnode *to, int len)
+scway *scaddway(scnode *from, const scnode *to, float len, void *data)
 {
 	scway *way = malloc(sizeof(scway));
 	way->lto = to;
 	way->alt = NULL;
 	way->len = len;
-	scway *apar, *par = NULL;
-	for (apar = from->way; apar != NULL; par = apar, apar = apar->alt);
+	way->dat = data;
+	scway *par = __scnodgetway(from);
 	if (par)
 		par->alt = way;
 	else
@@ -21,23 +24,49 @@ scway *scaddway(scnode *from, const scnode *to, int len)
 	return way;
 }
 
+int scisconnected(scnode *n1, scnode *n2) {
+	for (scway *way = n1->way; way != NULL; way = way->alt) {
+		if (way->lto == n2)
+			return 1;
+	}
+	return 0;
+}
+
 scwaypoint *scout(const scnode *from, const scnode *to, scwaypoint *stack)
 {
 	scwaypoint *wayp = NULL;
 	if (from == to)
 		return __scallocwayp(from, NULL);
+	scwaypoint *stackend = __scstackgetend(stack);
 	for (scway *way = from->way; way != NULL; way = way->alt) {
-		scwaypoint *stackend;
-		if ((stackend = __scstackfindgetend(stack, way)) == NULL)
+		if (__scstackfind(stack, way))
 			continue;
 		scwaypoint *twayp = __scallocwayp(from, way);
-		stackend->nxt = twayp;
-		scwaypoint *nwayp = scout(way->lto, to, stack)
-		if (wayp && wayp->len <= (twayp->len = __scstackgetlen(twayp)))
-			__scstackfree(wayp);
-		wayp = twayp;
+		if (stack)
+			stackend->nxt = twayp;
+		if ((twayp->nxt = scout(way->lto, to, stack ? stack : twayp)))
+			twayp->len += twayp->nxt->len;
+		if (twayp->nxt && (! wayp || wayp->len > twayp->len)) { 
+			scdestroypath(wayp);
+			wayp = twayp;
+		} else {
+			scdestroypath(twayp);
+		}
 	}
-	return wayp;
+	return stack ? (stackend->nxt = wayp) : wayp;
+}
+
+void scdestroypath(scwaypoint *stack)
+{
+	for (scwaypoint *sptr = stack; sptr != NULL; sptr = sptr->nxt)
+		free(sptr);
+}
+
+scway *__scnodgetway(const scnode *node)
+{
+	scway *way;
+	for (way = node->way; way != NULL && way->alt != NULL; way = way->alt);
+	return way;
 }
 
 scwaypoint *__scallocwayp(const scnode *node, const scway *way)
@@ -46,20 +75,21 @@ scwaypoint *__scallocwayp(const scnode *node, const scway *way)
 	wayp->nod = node;
 	wayp->way = way;
 	wayp->nxt = NULL;
-	wayp->len = way->len;
+	wayp->len = way ? way->len : 0.0f;
+	return wayp;
 }
 
-scwaypoint *__scstackfindgetend(scwaypoint *stack, const scway *way)
+int __scstackfind(const scwaypoint *stack, const scway *way)
 {
-	scwaypoint *asptr, *sptr;
-	for (asptr = stack; asptr != NULL; sptr = asptr, asptr = asptr->nxt)
-		if (asptr->nod == way->lto)
-			return NULL;
+	for (const scwaypoint *sptr = stack; sptr != NULL; sptr = sptr->nxt)
+		if (sptr->nod == way->lto)
+			return 1;
+	return 0;
+}
+
+scwaypoint *__scstackgetend(scwaypoint *stack)
+{
+	scwaypoint *sptr;
+	for (sptr = stack; sptr != NULL && sptr->nxt != NULL; sptr = sptr->nxt);
 	return sptr;
-}
-
-void __scstackfree(scwaypoint *stack)
-{
-	for (scwaypoint *sptr = stack; sptr != NULL; sptr = sptr->nxt)
-		free(sptr);
 }

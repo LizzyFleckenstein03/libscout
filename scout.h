@@ -9,26 +9,39 @@ struct scnode {
 struct scway {
 	const struct scnode *lto;
 	struct scway *alt;
-	int len;
+	float len;
+	void *dat;
 };
 
 struct scwaypoint {
 	const struct scnode *nod;
 	const struct scway *way;
 	struct scwaypoint *nxt;
-	int len;
+	float len;
 };
 
-struct scway *scaddway(struct scnode *, const struct scnode *, int);
+struct scnode *scnodalloc(void *);
+struct scway *scaddway(struct scnode *, const struct scnode *, float, void *data);
+int scisconnected(struct scnode *, struct scnode *);
 struct scwaypoint *scout(const struct scnode *, const struct scnode *, struct scwaypoint *);
+void scdestroypath(struct scwaypoint *);
+
 
 #ifdef __LIBSCOUT_INTERNAL__
 
+struct scway *__scnodgetway(const struct scnode *);
 struct scwaypoint *__scallocwayp(const struct scnode *, const struct scway *);
-struct scwaypoint *__scstackfindgetend(struct scwaypoint *, const struct scway *);
-void __scstackfree(struct scwaypoint *);
-int __scstackgetlen(struct scwaypoint *);
+int __scstackfind(const struct scwaypoint *, const struct scway *);
+struct scwaypoint *__scstackgetend(struct scwaypoint *);
 
 #endif // __LIBSCOUT_INTERNAL__
+
+#ifdef __LIBSCOUT_TYPEDEF__
+
+typedef struct scnode scnode;
+typedef struct scway scway;
+typedef struct scwaypoint scwaypoint;
+
+#endif
 
 #endif // __LIBSCOUT__
